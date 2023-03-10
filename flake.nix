@@ -21,7 +21,7 @@
             shell = "${pkgs.bashInteractive}/bin/bash";
             home = "/root";
             gid = 0;
-            groups = [ "root" ];
+            groups = [ "root" "circleci" ];
           };
 
           circleci = {
@@ -29,13 +29,22 @@
             shell = "${pkgs.bashInteractive}/bin/bash";
             home = "/home/circleci";
             gid = 1002;
-            groups = [ ];
+            groups = [ "circleci" ];
+          };
+
+          nixbld1 = {
+            uid = 3001;
+            shell = "/bin/nologin";
+            home = "/var/empty";
+            gid = 3000;
+            groups = [ "nixbld" ];
           };
         };
 
         groups = {
           root.gid = 0;
           circleci.gid = 1002;
+          nixbld.gid = 3000;
         };
 
         userToPasswd = k: { uid, shell, home, gid, groups }: "${k}:x:${toString uid}:${toString gid}::${home}:${shell}";
@@ -96,6 +105,7 @@
           max-jobs = auto
           cores = 0
           trusted-users = root circleci
+          build-users-group = nixbld
           experimental-features = nix-command flakes impure-derivations ca-derivations
         '';
       in
@@ -137,14 +147,15 @@
               mkdir -p /usr/bin
               ln -s ${coreutils}/bin/env /usr/bin/env
 
-              mkdir -p /home/circleci
+              mkdir -p /home/circleci/project
               chown -R circleci:circleci /home/circleci
             '';
 
             config = {
               Cmd = [ "${pkgs.bashInteractive}/bin/bash" ];
+              User = "root";
+              WorkingDir = "/home/circleci/project";
               Env = [
-                "USER=circleci"
                 "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
                 "GIT_SSL_CAINFO=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
                 "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
